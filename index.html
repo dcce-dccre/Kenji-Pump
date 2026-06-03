@@ -29,17 +29,12 @@
         <div class="form-group">
             <label>ปริมาณที่ปั๊ม</label>
             <div class="flex-group">
-                <input type="number" id="amount" step="1" placeholder="ระบุจำนวน" required>
+                <!-- เพิ่ม inputmode="decimal" เพื่อให้คีย์บอร์ดมือถือเด้งเป็นตัวเลขทันที -->
+                <input type="number" id="amount" inputmode="decimal" step="0.1" placeholder="พิมพ์ตัวเลข" required>
                 <select id="unit">
                     <option value="ml">ml</option>
                     <option value="oz">oz</option>
                 </select>
-            </div>
-            <div class="quick-amounts" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 10px;">
-                <button type="button" onclick="document.getElementById('amount').value='30'" style="padding: 10px 5px; background: #fff5f6; border: 1px solid #ff8fa3; border-radius: 8px; color: #ff5c7a; font-weight: bold;">30ml</button>
-                <button type="button" onclick="document.getElementById('amount').value='60'" style="padding: 10px 5px; background: #fff5f6; border: 1px solid #ff8fa3; border-radius: 8px; color: #ff5c7a; font-weight: bold;">60ml</button>
-                <button type="button" onclick="document.getElementById('amount').value='90'" style="padding: 10px 5px; background: #fff5f6; border: 1px solid #ff8fa3; border-radius: 8px; color: #ff5c7a; font-weight: bold;">90ml</button>
-                <button type="button" onclick="document.getElementById('amount').value='120'" style="padding: 10px 5px; background: #fff5f6; border: 1px solid #ff8fa3; border-radius: 8px; color: #ff5c7a; font-weight: bold;">120ml</button>
             </div>
         </div>
         <div class="form-group"><label>ครั้งที่</label><input type="number" id="sessionNum" required></div>
