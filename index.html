@@ -1,210 +1,20 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍼 บันทึกการปั๊มนมแม่ (Pumping Tracker)</title>
-    <style>
-        :root {
-            --primary: #ff8fa3;
-            --primary-hover: #ff758f;
-            --bg: #fff0f3;
-            --card-bg: #ffffff;
-            --text: #4a5568;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 500px;
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(255, 143, 163, 0.2);
-        }
-
-        h2 {
-            text-align: center;
-            color: #ff5c7a;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ffe3e8;
-            border-radius: 10px;
-            font-size: 1rem;
-            outline: none;
-            transition: 0.3s;
-        }
-
-        input:focus, select:focus {
-            border-color: var(--primary);
-        }
-
-        .flex-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .flex-group input { flex: 2; }
-        .flex-group select { flex: 1; }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-            margin-top: 10px;
-            box-shadow: 0 4px 10px rgba(255, 143, 163, 0.3);
-        }
-
-        button:hover { background-color: var(--primary-hover); }
-        button:disabled { background-color: #cbd5e0; cursor: not-allowed; box-shadow: none; }
-
-        .summary-box {
-            background: #fff5f6;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            border-left: 5px solid var(--primary);
-            font-size: 0.95rem;
-        }
-
-        .history-title {
-            margin-top: 25px;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-            color: #ff5c7a;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold;
-        }
-
-        .log-list { margin-top: 10px; max-height: 400px; overflow-y: auto; }
-        .log-item {
-            background: #f7fafc;
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #edf2f7;
-        }
-        .log-header {
-            display: flex;
-            justify-content: space-between;
-            font-weight: bold;
-            font-size: 0.95rem;
-            color: #2d3748;
-            margin-bottom: 5px;
-        }
-        .log-details { font-size: 0.85rem; color: #718096; line-height: 1.4; }
-        .loading-text { text-align: center; color: #a0aec0; padding: 20px; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h2>🍼 Pumping Tracker</h2>
-    
-    <form id="pumpForm">
-        <div class="form-group">
-            <label>ปริมาณที่ปั๊ม</label>
-            <div class="flex-group">
-                <input type="number" id="amount" step="0.1" placeholder="ระบุจำนวน" required>
-                <select id="unit">
-                    <option value="ml">ml</option>
-                    <option value="oz">oz</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>ครั้งที่ปั๊มของวัน</label>
-            <input type="number" id="sessionNum" min="1" placeholder="เช่น 1, 2, 3" required>
-        </div>
-
-        <div class="form-group">
-            <label>วัน-เวลาที่ปั๊ม</label>
-            <input type="datetime-local" id="pumpTime" required>
-        </div>
-
-        <div class="form-group">
-            <label>ประเภทเครื่องปั๊ม</label>
-            <input type="text" id="pumpType" placeholder="เช่น เครื่องปั๊มคู่ไฟฟ้า, ปั๊มมือ">
-        </div>
-
-        <div class="form-group">
-            <label>ขนาดกรวย (มม.)</label>
-            <input type="text" id="flangeSize" placeholder="เช่น 24 มม., 27 มม.">
-        </div>
-
-        <button type="submit" id="btnSave">บันทึกข้อมูลขึ้น Cloud</button>
-    </form>
-
-    <div class="summary-box" id="dailySummary">
-        <strong>รวมยอดวันนี้:</strong> กำลังคำนวณ...
-    </div>
-
-    <div class="history-title">
-        <span>ประวัติการปั๊ม (Cloud)</span>
-    </div>
-
-    <div class="log-list" id="logList">
-        <div class="loading-text">กำลังโหลดประวัติ...</div>
-    </div>
-</div>
-
 <script>
     // *** วาง Web App URL ที่ได้จาก Google Script ตรงนี้ ***
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxNXzsx58_Bef8ej1kYWJnHf7boBQ67_SZC1VT4nzN2GiaGA8Z4n1QXyRNI0ga3ZRZg/exec; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzj4c0wisDP_uMayoL9e5qqj1mzOppsvIWHqZoQhABTjA-AERcCMWZ6Ox6HrIFmQXXi/exec"; 
+    
+    let myChart = null; // ตัวแปรเก็บกราฟ
 
-    // ฟังก์ชันตั้งเวลาปัจจุบัน
     function setDefaults() {
         const now = new Date();
         const offset = now.getTimezoneOffset() * 60000;
         document.getElementById('pumpTime').value = (new Date(now - offset)).toISOString().slice(0, 16);
     }
 
-    // ฟังก์ชันส่งข้อมูลขึ้น Cloud
     document.getElementById('pumpForm').addEventListener('submit', async function(e) {
         e.preventDefault();
-
         const btn = document.getElementById('btnSave');
         btn.disabled = true;
-        btn.innerText = "⏳ กำลังบันทึก...";
+        btn.innerText = "⏳ กำลังส่งข้อมูลขึ้น Cloud...";
 
         const dataPayload = {
             id: Date.now().toString(),
@@ -223,94 +33,132 @@
                 body: JSON.stringify(dataPayload)
             });
             
-            alert("บันทึกสำเร็จ!");
             document.getElementById('amount').value = "";
             setDefaults();
-            loadData(); // ดึงข้อมูลมาแสดงใหม่
+            
+            // เปลี่ยนข้อความเพื่อบอกให้รอ Google ประมวลผล
+            document.getElementById('logList').innerHTML = '<div class="loading-text">⏳ กำลังจัดเรียงประวัติและสร้างกราฟ...</div>';
+            
+            // หน่วงเวลา 1.5 วินาที ให้ Google Sheets เขียนเสร็จ แล้วค่อยดึงข้อมูล
+            setTimeout(() => {
+                loadData();
+                btn.disabled = false;
+                btn.innerText = "บันทึกข้อมูลขึ้น Cloud";
+                alert("บันทึกสำเร็จ!");
+            }, 1500);
+
         } catch (error) {
             alert("บันทึกไม่สำเร็จ: " + error.message);
-        } finally {
             btn.disabled = false;
             btn.innerText = "บันทึกข้อมูลขึ้น Cloud";
         }
     });
 
-    // ฟังก์ชันดึงข้อมูลจาก Cloud มาแสดง
     async function loadData() {
         const logList = document.getElementById('logList');
         try {
-            const res = await fetch(SCRIPT_URL);
+            // เพิ่ม ?t=... ต่อท้าย URL เพื่อบังคับไม่ให้มือถือใช้ข้อมูลเก่า (Cache Buster)
+            const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
             const rows = await res.json();
-            displayLogs(rows);
+            displayLogsAndDashboard(rows);
         } catch (e) {
-            logList.innerHTML = '<div class="loading-text">โหลดข้อมูลไม่สำเร็จ กรุณารีเฟรช</div>';
+            logList.innerHTML = '<div class="loading-text">โหลดข้อมูลไม่สำเร็จ กรุณากดรีเฟรชหน้าเว็บ</div>';
         }
     }
 
-    // ฟังก์ชันจัดเรียงและแสดงผล
-    function displayLogs(rows) {
+    function displayLogsAndDashboard(rows) {
         const logList = document.getElementById('logList');
-        const dailySummary = document.getElementById('dailySummary');
+        const dashboard = document.getElementById('dashboardSection');
         logList.innerHTML = '';
 
         if (!rows || rows.length <= 1) {
             logList.innerHTML = '<div class="loading-text">ยังไม่มีประวัติการบันทึก</div>';
-            dailySummary.innerHTML = '<strong>รวมยอดวันนี้:</strong> 0 ml / 0 oz';
             document.getElementById('sessionNum').value = 1;
             return;
         }
 
-        // ตัดหัวตาราง (บรรทัดแรก) ออก และเรียงจากใหม่ไปเก่า
+        dashboard.style.display = 'block';
         const logs = rows.slice(1).sort((a, b) => new Date(b[0]) - new Date(a[0]));
-        
         const todayStr = new Date().toLocaleDateString('th-TH');
-        let totalMl = 0;
-        let totalOz = 0;
+        
+        let totalMlToday = 0;
         let sessionCountToday = 0;
+        let dailyTotals = {}; 
 
         logs.forEach(row => {
-            // โครงสร้าง row: [time, session, amount, unit, pumpType, flangeSize]
-            const logDateStr = new Date(row[0]).toLocaleDateString('th-TH');
-            const amount = parseFloat(row[2]) || 0;
+            const logDateObj = new Date(row[0]);
+            const logDateStr = logDateObj.toLocaleDateString('th-TH');
+            const shortDateStr = logDateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            
+            let amount = parseFloat(row[2]) || 0;
             const unit = row[3];
+            
+            let amountInMl = (unit === 'oz') ? amount * 29.5735 : amount;
 
-            // คำนวณยอดรวมของวันนี้
             if (logDateStr === todayStr) {
                 sessionCountToday++;
-                if (unit === 'ml') {
-                    totalMl += amount;
-                    totalOz += amount / 29.5735;
-                } else {
-                    totalOz += amount;
-                    totalMl += amount * 29.5735;
-                }
+                totalMlToday += amountInMl;
             }
 
-            // สร้าง UI แสดงรายการ
-            const formattedTime = new Date(row[0]).toLocaleTimeString('th-TH', { hour: '2-digit', minute:'2-digit' });
+            if (!dailyTotals[shortDateStr]) dailyTotals[shortDateStr] = 0;
+            dailyTotals[shortDateStr] += amountInMl;
+
+            const formattedTime = logDateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute:'2-digit' });
             const item = document.createElement('div');
             item.className = 'log-item';
             item.innerHTML = `
                 <div class="log-header">
-                    <span>รอบที่ ${row[1]} ⏳ ${formattedTime} น. (${logDateStr.slice(0, -5)})</span>
+                    <span>รอบที่ ${row[1]} ⏳ ${formattedTime} น. (${shortDateStr})</span>
                     <span style="color:#ff5c7a;">${amount} ${unit}</span>
                 </div>
-                <div class="log-details">
-                    เครื่องปั๊ม: ${row[4]} | กรวย: ${row[5]}
-                </div>
+                <div class="log-details">เครื่องปั๊ม: ${row[4]} | กรวย: ${row[5]}</div>
             `;
             logList.appendChild(item);
         });
 
-        // อัปเดตยอดรวมและ Auto-run เลขครั้งที่ปั๊ม
-        dailySummary.innerHTML = `<strong>รวมยอดวันนี้:</strong> ${totalMl.toFixed(1)} ml หรือ ${totalOz.toFixed(1)} oz`;
+        let displayTotalToday = totalMlToday;
+        let displayUnit = "ml";
+        
+        // ถ้าคุณพ่อต้องการให้สรุปเป็น oz ให้ใช้บรรทัดล่างนี้แทนครับ
+        // displayTotalToday = totalMlToday / 29.5735; displayUnit = "oz";
+
+        document.getElementById('statTodayTotal').innerText = `${displayTotalToday.toFixed(0)} ${displayUnit}`;
+        document.getElementById('statTodayCount').innerText = `${sessionCountToday} รอบ`;
         document.getElementById('sessionNum').value = sessionCountToday + 1;
+
+        const datesArray = Object.keys(dailyTotals).reverse().slice(-7);
+        const amountsArray = datesArray.map(date => dailyTotals[date].toFixed(0));
+
+        renderChart(datesArray, amountsArray);
     }
 
-    // เริ่มการทำงาน
+    function renderChart(labels, data) {
+        const ctx = document.getElementById('pumpChart').getContext('2d');
+        
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'ปริมาณนม (ml)',
+                    data: data,
+                    backgroundColor: 'rgba(255, 143, 163, 0.6)',
+                    borderColor: '#ff5c7a',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
     setDefaults();
     loadData();
 </script>
-
-</body>
-</html>
