@@ -5,39 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍼 Pumping Tracker</title>
     <style>
-        :root { --primary: #ff8fa3; --bg: #fff0f3; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background-color: var(--bg); padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        :root { --primary: #ff8fa3; --bg: #fff0f3; --text: #2d3748; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); padding: 20px; display: flex; justify-content: center; color: var(--text); }
+        .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 15px rgba(255,143,163,0.15); }
+        h2 { text-align: center; color: #ff5c7a; margin-bottom: 20px; }
+        
         .form-group { margin-bottom: 15px; }
-        label { font-weight: bold; display: block; margin-bottom: 5px; }
-        input, select { width: 100%; padding: 12px; border: 2px solid #ff8fa3; border-radius: 10px; font-size: 1rem; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 14px; border: 2px solid #ff8fa3; border-radius: 10px; font-size: 1rem; outline: none; }
+        input:focus, select:focus { border-color: #ff5c7a; }
         .flex-group { display: flex; gap: 10px; }
-        button { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        .log-item { background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px; border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        
+        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        .log-list { margin-top: 25px; }
+        .date-group { margin-bottom: 20px; }
+        .date-header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: #ffe3e8; padding: 10px 15px; border-radius: 10px; 
+            font-weight: bold; color: #ff5c7a; margin-bottom: 10px; font-size: 1rem;
+        }
+        .daily-total { font-size: 0.9rem; background: white; padding: 4px 8px; border-radius: 6px; color: #d6336c; }
+        .log-item { 
+            background: white; padding: 12px 15px; margin-bottom: 8px; 
+            border-radius: 10px; border-left: 4px solid var(--primary); 
+            border: 1px solid #ffe3e8; display: flex; justify-content: space-between; align-items: center; 
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <h2>🍼 Kenji Pump Log</h2>
+    <h2>🍼 บันทึกการปั๊มนม</h2>
     <form id="pumpForm">
         <div class="form-group">
-            <label>ปริมาณ (ml/oz)</label>
+            <label>ปริมาณ (ml / oz)</label>
             <div class="flex-group">
-                <input type="number" id="amount" required>
-                <select id="unit"><option value="ml">ml</option><option value="oz">oz</option></select>
+                <input type="number" id="amount" inputmode="decimal" step="0.1" style="flex: 2;" required>
+                <select id="unit" style="flex: 1;"><option value="ml">ml</option><option value="oz">oz</option></select>
             </div>
         </div>
-        <div class="form-group"><label>ครั้งที่</label><input type="number" id="sessionNum" required></div>
+        <div class="form-group"><label>ครั้งที่ของวัน</label><input type="number" id="sessionNum" required></div>
         <div class="form-group"><label>วัน-เวลา</label><input type="datetime-local" id="pumpTime" required></div>
-        <div class="form-group"><label>เครื่องปั๊ม</label><input type="text" id="pumpType"></div>
-        <div class="form-group"><label>ขนาดกรวย (mm)</label><input type="text" id="flangeSize"></div>
+        
+        <div class="form-group"><label>เครื่องปั๊ม</label><input type="text" id="pumpType" placeholder="เช่น คู่ไฟฟ้า, ปั๊มมือ"></div>
+        
+        <div class="form-group">
+            <label>ยี่ห้อกรวย และ ขนาด (mm)</label>
+            <div class="flex-group">
+                <input type="text" id="flangeBrand" placeholder="ยี่ห้อ (เช่น Maymom)" style="flex: 2;">
+                <input type="number" id="flangeSize" placeholder="ขนาด" style="flex: 1;" inputmode="numeric">
+            </div>
+        </div>
+
         <button type="submit" id="btnSave">บันทึกข้อมูล</button>
     </form>
-    <div id="logList" style="margin-top: 20px;">กำลังโหลด...</div>
+    <div id="logList" class="log-list">กำลังโหลดประวัติ...</div>
 </div>
 
 <script>
+    // *** วาง Web App URL ที่ใช้งานได้ ของคุณพ่อตรงนี้ครับ ***
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyBgh8Ba-wO5_pLzE6XG2JAEzC8Po4GEsniw843IhZ8LHX4WA4BFm2LkmKCpmn0ZnNj/exec"; 
 
     function setDefaults() {
@@ -51,6 +78,19 @@
         const btn = document.getElementById('btnSave');
         btn.disabled = true; btn.innerText = "⏳ กำลังบันทึก...";
 
+        const flangeBrand = document.getElementById('flangeBrand').value.trim();
+        const flangeSize = document.getElementById('flangeSize').value.trim();
+        
+        // มัดรวมยี่ห้อกับขนาดเข้าด้วยกัน
+        let combinedFlange = '-';
+        if (flangeBrand && flangeSize) {
+            combinedFlange = `${flangeBrand} ${flangeSize}mm`;
+        } else if (flangeBrand) {
+            combinedFlange = flangeBrand;
+        } else if (flangeSize) {
+            combinedFlange = `${flangeSize}mm`;
+        }
+
         const data = {
             id: Date.now(),
             time: document.getElementById('pumpTime').value,
@@ -58,7 +98,7 @@
             amount: document.getElementById('amount').value,
             unit: document.getElementById('unit').value,
             pumpType: document.getElementById('pumpType').value || '-',
-            flangeSize: document.getElementById('flangeSize').value || '-'
+            flangeSize: combinedFlange 
         };
 
         try {
@@ -75,18 +115,64 @@
             const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
             const rows = await res.json();
             const logList = document.getElementById('logList');
-            logList.innerHTML = '<h3>ประวัติย้อนหลัง</h3>';
+            logList.innerHTML = '';
             
-            // ใช้ slice(1) เพื่อข้ามหัวตาราง แล้ว reverse ให้ล่าสุดขึ้นก่อน
-            rows.slice(1).reverse().forEach(row => {
-                // row: [0:time, 1:session, 2:amount, 3:unit, 4:type, 5:flange, 6:id]
-                logList.innerHTML += `
-                    <div class="log-item">
-                        <div><b>รอบที่ ${row[1]}</b> (${row[4]})<br><small>${row[0].substring(5, 16)}</small></div>
-                        <div style="font-size:1.1rem; color:#ff5c7a;">${row[2]} ${row[3]} <br> <small style="color:gray">${row[5]}mm</small></div>
-                    </div>`;
+            const dataRows = rows.slice(1).reverse(); 
+            const groupedData = {};
+
+            dataRows.forEach(row => {
+                const dateObj = new Date(row[0]);
+                const dateKey = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+                const timeStr = dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+                if (!groupedData[dateKey]) {
+                    groupedData[dateKey] = { logs: [], totalMl: 0 };
+                }
+
+                const amount = parseFloat(row[2]) || 0;
+                const unit = row[3];
+                
+                if (unit === 'oz') {
+                    groupedData[dateKey].totalMl += (amount * 30);
+                } else {
+                    groupedData[dateKey].totalMl += amount;
+                }
+
+                groupedData[dateKey].logs.push({
+                    session: row[1], amount: amount, unit: unit,
+                    pumpType: row[4], flange: row[5], timeStr: timeStr
+                });
             });
-        } catch (e) { document.getElementById('logList').innerHTML = "โหลดข้อมูลพลาด"; }
+
+            for (const [date, group] of Object.entries(groupedData)) {
+                let totalMl = group.totalMl;
+                let totalOz = (totalMl / 30).toFixed(1); 
+                
+                let html = `<div class="date-group">
+                                <div class="date-header">
+                                    <span>📅 ${date}</span>
+                                    <span class="daily-total">รวม: ${totalMl.toFixed(0)} ml / ${totalOz} oz</span>
+                                </div>`;
+                
+                group.logs.forEach(log => {
+                    html += `
+                        <div class="log-item">
+                            <div>
+                                <b>รอบที่ ${log.session}</b> <small>(${log.pumpType})</small><br>
+                                <small style="color:gray;">⏳ ${log.timeStr} น.</small>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size:1.1rem; color:#ff5c7a; font-weight:bold;">${log.amount} ${log.unit}</div>
+                                <small style="color:gray;">กรวย: ${log.flange}</small>
+                            </div>
+                        </div>`;
+                });
+                
+                html += `</div>`;
+                logList.innerHTML += html;
+            }
+
+        } catch (e) { document.getElementById('logList').innerHTML = "ไม่มีประวัติ หรือโหลดข้อมูลพลาด"; }
     }
 
     setDefaults();
