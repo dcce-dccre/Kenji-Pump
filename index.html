@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍼 Pumping Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --primary: #ff8fa3; --bg: #fff0f3; --text: #2d3748; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -19,19 +20,20 @@
         
         button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
         
+        /* สไตล์ของ Dashboard */
+        .dashboard-section { background: white; border: 2px solid #ffe3e8; border-radius: 15px; padding: 15px; margin-top: 25px; display: none; }
+        .dashboard-title { text-align: center; color: #ff5c7a; font-weight: bold; margin-bottom: 15px; font-size: 1.1rem; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: #fff5f6; padding: 10px; border-radius: 10px; text-align: center; }
+        .stat-card .label { font-size: 0.85rem; color: #718096; margin-bottom: 5px; }
+        .stat-card .value { font-size: 1.2rem; font-weight: bold; color: #ff5c7a; }
+        .chart-container { position: relative; height: 200px; width: 100%; }
+
         .log-list { margin-top: 25px; }
         .date-group { margin-bottom: 20px; }
-        .date-header { 
-            display: flex; justify-content: space-between; align-items: center; 
-            background: #ffe3e8; padding: 10px 15px; border-radius: 10px; 
-            font-weight: bold; color: #ff5c7a; margin-bottom: 10px; font-size: 1rem;
-        }
+        .date-header { display: flex; justify-content: space-between; align-items: center; background: #ffe3e8; padding: 10px 15px; border-radius: 10px; font-weight: bold; color: #ff5c7a; margin-bottom: 10px; font-size: 1rem; }
         .daily-total { font-size: 0.9rem; background: white; padding: 4px 8px; border-radius: 6px; color: #d6336c; }
-        .log-item { 
-            background: white; padding: 12px 15px; margin-bottom: 8px; 
-            border-radius: 10px; border-left: 4px solid var(--primary); 
-            border: 1px solid #ffe3e8; display: flex; justify-content: space-between; align-items: center; 
-        }
+        .log-item { background: white; padding: 12px 15px; margin-bottom: 8px; border-radius: 10px; border-left: 4px solid var(--primary); border: 1px solid #ffe3e8; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
@@ -47,9 +49,7 @@
         </div>
         <div class="form-group"><label>ครั้งที่ของวัน</label><input type="number" id="sessionNum" required></div>
         <div class="form-group"><label>วัน-เวลา</label><input type="datetime-local" id="pumpTime" required></div>
-        
         <div class="form-group"><label>เครื่องปั๊ม</label><input type="text" id="pumpType" placeholder="เช่น คู่ไฟฟ้า, ปั๊มมือ"></div>
-        
         <div class="form-group">
             <label>ยี่ห้อกรวย และ ขนาด (mm)</label>
             <div class="flex-group">
@@ -57,15 +57,34 @@
                 <input type="number" id="flangeSize" placeholder="ขนาด" style="flex: 1;" inputmode="numeric">
             </div>
         </div>
-
         <button type="submit" id="btnSave">บันทึกข้อมูล</button>
     </form>
+
+    <div class="dashboard-section" id="dashboardSection">
+        <div class="dashboard-title">📊 สรุปภาพรวม</div>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="label">ยอดรวมวันนี้</div>
+                <div class="value" id="statTodayTotal">0 ml</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">จำนวนรอบวันนี้</div>
+                <div class="value" id="statTodayCount">0 รอบ</div>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="pumpChart"></canvas>
+        </div>
+    </div>
+
     <div id="logList" class="log-list">กำลังโหลดประวัติ...</div>
 </div>
 
 <script>
-    // *** วาง Web App URL ที่ใช้งานได้ ของคุณพ่อตรงนี้ครับ ***
+    // *** วาง Web App URL ตัวล่าสุดของคุณพ่อที่นี่ ***
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyBgh8Ba-wO5_pLzE6XG2JAEzC8Po4GEsniw843IhZ8LHX4WA4BFm2LkmKCpmn0ZnNj/exec"; 
+    
+    let myChart = null; // ตัวแปรเก็บกราฟ
 
     function setDefaults() {
         const now = new Date();
@@ -81,15 +100,10 @@
         const flangeBrand = document.getElementById('flangeBrand').value.trim();
         const flangeSize = document.getElementById('flangeSize').value.trim();
         
-        // มัดรวมยี่ห้อกับขนาดเข้าด้วยกัน
         let combinedFlange = '-';
-        if (flangeBrand && flangeSize) {
-            combinedFlange = `${flangeBrand} ${flangeSize}mm`;
-        } else if (flangeBrand) {
-            combinedFlange = flangeBrand;
-        } else if (flangeSize) {
-            combinedFlange = `${flangeSize}mm`;
-        }
+        if (flangeBrand && flangeSize) combinedFlange = `${flangeBrand} ${flangeSize}mm`;
+        else if (flangeBrand) combinedFlange = flangeBrand;
+        else if (flangeSize) combinedFlange = `${flangeSize}mm`;
 
         const data = {
             id: Date.now(),
@@ -120,23 +134,19 @@
             const dataRows = rows.slice(1).reverse(); 
             const groupedData = {};
 
+            // 1. จัดกลุ่มข้อมูล
             dataRows.forEach(row => {
                 const dateObj = new Date(row[0]);
                 const dateKey = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
                 const timeStr = dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-                if (!groupedData[dateKey]) {
-                    groupedData[dateKey] = { logs: [], totalMl: 0 };
-                }
+                if (!groupedData[dateKey]) groupedData[dateKey] = { logs: [], totalMl: 0 };
 
                 const amount = parseFloat(row[2]) || 0;
                 const unit = row[3];
                 
-                if (unit === 'oz') {
-                    groupedData[dateKey].totalMl += (amount * 30);
-                } else {
-                    groupedData[dateKey].totalMl += amount;
-                }
+                if (unit === 'oz') groupedData[dateKey].totalMl += (amount * 29.57); // ใช้ 29.57 เพื่อความเป๊ะ
+                else groupedData[dateKey].totalMl += amount;
 
                 groupedData[dateKey].logs.push({
                     session: row[1], amount: amount, unit: unit,
@@ -144,9 +154,29 @@
                 });
             });
 
+            // 2. อัปเดต Dashboard ของวันนี้
+            const todayStr = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+            if (groupedData[todayStr]) {
+                const todayTotalMl = groupedData[todayStr].totalMl;
+                document.getElementById('statTodayTotal').innerText = `${todayTotalMl.toFixed(0)} ml / ${(todayTotalMl/29.57).toFixed(1)} oz`;
+                document.getElementById('statTodayCount').innerText = `${groupedData[todayStr].logs.length} รอบ`;
+                document.getElementById('sessionNum').value = groupedData[todayStr].logs.length + 1; // รันเลขรอบอัตโนมัติ
+            } else {
+                document.getElementById('statTodayTotal').innerText = "0 ml / 0 oz";
+                document.getElementById('statTodayCount').innerText = "0 รอบ";
+                document.getElementById('sessionNum').value = 1;
+            }
+            document.getElementById('dashboardSection').style.display = 'block';
+
+            // 3. เตรียมข้อมูลสร้างกราฟ 7 วันล่าสุด
+            const datesArray = Object.keys(groupedData).slice(0, 7).reverse(); // ดึง 7 วันล่าสุดแล้วเรียงซ้ายไปขวา
+            const amountsArray = datesArray.map(date => groupedData[date].totalMl.toFixed(0));
+            renderChart(datesArray, amountsArray);
+
+            // 4. วาดรายการประวัติ
             for (const [date, group] of Object.entries(groupedData)) {
                 let totalMl = group.totalMl;
-                let totalOz = (totalMl / 30).toFixed(1); 
+                let totalOz = (totalMl / 29.57).toFixed(1); 
                 
                 let html = `<div class="date-group">
                                 <div class="date-header">
@@ -173,6 +203,33 @@
             }
 
         } catch (e) { document.getElementById('logList').innerHTML = "ไม่มีประวัติ หรือโหลดข้อมูลพลาด"; }
+    }
+
+    // ฟังก์ชันสร้างกราฟ
+    function renderChart(labels, data) {
+        const ctx = document.getElementById('pumpChart').getContext('2d');
+        if (myChart) myChart.destroy(); // ลบกราฟเก่าทิ้งก่อนวาดใหม่
+        
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'ปริมาณ (ml)',
+                    data: data,
+                    backgroundColor: 'rgba(255, 143, 163, 0.7)',
+                    borderColor: '#ff5c7a',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: false } }
+            }
+        });
     }
 
     setDefaults();
