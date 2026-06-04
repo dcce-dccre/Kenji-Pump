@@ -20,14 +20,13 @@
         
         button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
         
-        /* สไตล์ของ Dashboard */
         .dashboard-section { background: white; border: 2px solid #ffe3e8; border-radius: 15px; padding: 15px; margin-top: 25px; display: none; }
         .dashboard-title { text-align: center; color: #ff5c7a; font-weight: bold; margin-bottom: 15px; font-size: 1.1rem; }
         .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .stat-card { background: #fff5f6; padding: 10px; border-radius: 10px; text-align: center; }
         .stat-card .label { font-size: 0.85rem; color: #718096; margin-bottom: 5px; }
         .stat-card .value { font-size: 1.2rem; font-weight: bold; color: #ff5c7a; }
-        .chart-container { position: relative; height: 200px; width: 100%; }
+        .chart-container { position: relative; height: 180px; width: 100%; margin-bottom: 15px; }
 
         .log-list { margin-top: 25px; }
         .date-group { margin-bottom: 20px; }
@@ -61,7 +60,7 @@
     </form>
 
     <div class="dashboard-section" id="dashboardSection">
-        <div class="dashboard-title">📊 สรุปภาพรวม</div>
+        <div class="dashboard-title">📊 สรุปปริมาณ 7 วันย้อนหลัง</div>
         <div class="stat-grid">
             <div class="stat-card">
                 <div class="label">ยอดรวมวันนี้</div>
@@ -75,6 +74,13 @@
         <div class="chart-container">
             <canvas id="pumpChart"></canvas>
         </div>
+
+        <hr style="border: 1px dashed #ffe3e8; margin: 20px 0;">
+        
+        <div class="dashboard-title">🏆 Top 5 กรวยปั๊ม (ค่าเฉลี่ยต่อรอบ)</div>
+        <div class="chart-container" style="height: 180px;">
+            <canvas id="topFlangeChart"></canvas>
+        </div>
     </div>
 
     <div id="logList" class="log-list">กำลังโหลดประวัติ...</div>
@@ -84,7 +90,8 @@
     // *** วาง Web App URL ตัวล่าสุดของคุณพ่อที่นี่ ***
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyBgh8Ba-wO5_pLzE6XG2JAEzC8Po4GEsniw843IhZ8LHX4WA4BFm2LkmKCpmn0ZnNj/exec"; 
     
-    let myChart = null; // ตัวแปรเก็บกราฟ
+    let myChart = null; 
+    let topFlangeChart = null; // ตัวแปรกราฟอันดับกรวย
 
     function setDefaults() {
         const now = new Date();
@@ -133,8 +140,8 @@
             
             const dataRows = rows.slice(1).reverse(); 
             const groupedData = {};
+            const flangeStats = {}; // เก็บข้อมูลสถิติของกรวย
 
-            // 1. จัดกลุ่มข้อมูล
             dataRows.forEach(row => {
                 const dateObj = new Date(row[0]);
                 const dateKey = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -144,23 +151,31 @@
 
                 const amount = parseFloat(row[2]) || 0;
                 const unit = row[3];
+                const amountInMl = (unit === 'oz') ? (amount * 29.57) : amount;
                 
-                if (unit === 'oz') groupedData[dateKey].totalMl += (amount * 29.57); // ใช้ 29.57 เพื่อความเป๊ะ
-                else groupedData[dateKey].totalMl += amount;
+                groupedData[dateKey].totalMl += amountInMl;
+
+                // --- เก็บสถิติกรวยปั๊ม ---
+                const flangeName = row[5];
+                if (flangeName && flangeName !== '-') {
+                    if (!flangeStats[flangeName]) flangeStats[flangeName] = { totalMl: 0, count: 0 };
+                    flangeStats[flangeName].totalMl += amountInMl;
+                    flangeStats[flangeName].count += 1;
+                }
 
                 groupedData[dateKey].logs.push({
                     session: row[1], amount: amount, unit: unit,
-                    pumpType: row[4], flange: row[5], timeStr: timeStr
+                    pumpType: row[4], flange: flangeName, timeStr: timeStr
                 });
             });
 
-            // 2. อัปเดต Dashboard ของวันนี้
+            // อัปเดต Dashboard ของวันนี้
             const todayStr = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
             if (groupedData[todayStr]) {
                 const todayTotalMl = groupedData[todayStr].totalMl;
                 document.getElementById('statTodayTotal').innerText = `${todayTotalMl.toFixed(0)} ml / ${(todayTotalMl/29.57).toFixed(1)} oz`;
                 document.getElementById('statTodayCount').innerText = `${groupedData[todayStr].logs.length} รอบ`;
-                document.getElementById('sessionNum').value = groupedData[todayStr].logs.length + 1; // รันเลขรอบอัตโนมัติ
+                document.getElementById('sessionNum').value = groupedData[todayStr].logs.length + 1;
             } else {
                 document.getElementById('statTodayTotal').innerText = "0 ml / 0 oz";
                 document.getElementById('statTodayCount').innerText = "0 รอบ";
@@ -168,12 +183,28 @@
             }
             document.getElementById('dashboardSection').style.display = 'block';
 
-            // 3. เตรียมข้อมูลสร้างกราฟ 7 วันล่าสุด
-            const datesArray = Object.keys(groupedData).slice(0, 7).reverse(); // ดึง 7 วันล่าสุดแล้วเรียงซ้ายไปขวา
+            // สร้างกราฟ 7 วัน
+            const datesArray = Object.keys(groupedData).slice(0, 7).reverse();
             const amountsArray = datesArray.map(date => groupedData[date].totalMl.toFixed(0));
-            renderChart(datesArray, amountsArray);
+            renderDailyChart(datesArray, amountsArray);
 
-            // 4. วาดรายการประวัติ
+            // --- คำนวณและสร้างกราฟ Top 5 กรวยปั๊ม ---
+            const flangeAverages = Object.keys(flangeStats).map(name => {
+                return {
+                    name: name,
+                    avg: flangeStats[name].totalMl / flangeStats[name].count
+                };
+            });
+            // เรียงลำดับจากมากไปน้อย และดึงแค่ 5 อันดับแรก
+            flangeAverages.sort((a, b) => b.avg - a.avg);
+            const top5Flanges = flangeAverages.slice(0, 5);
+            
+            renderTopFlangeChart(
+                top5Flanges.map(f => f.name), 
+                top5Flanges.map(f => f.avg.toFixed(1))
+            );
+
+            // วาดรายการประวัติ
             for (const [date, group] of Object.entries(groupedData)) {
                 let totalMl = group.totalMl;
                 let totalOz = (totalMl / 29.57).toFixed(1); 
@@ -205,11 +236,10 @@
         } catch (e) { document.getElementById('logList').innerHTML = "ไม่มีประวัติ หรือโหลดข้อมูลพลาด"; }
     }
 
-    // ฟังก์ชันสร้างกราฟ
-    function renderChart(labels, data) {
+    // กราฟแท่งสรุป 7 วัน (แนวตั้ง)
+    function renderDailyChart(labels, data) {
         const ctx = document.getElementById('pumpChart').getContext('2d');
-        if (myChart) myChart.destroy(); // ลบกราฟเก่าทิ้งก่อนวาดใหม่
-        
+        if (myChart) myChart.destroy(); 
         myChart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -223,11 +253,33 @@
                     borderRadius: 5
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { display: false } }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+        });
+    }
+
+    // กราฟแท่งจัดอันดับ Top 5 (แนวนอน)
+    function renderTopFlangeChart(labels, data) {
+        const ctx = document.getElementById('topFlangeChart').getContext('2d');
+        if (topFlangeChart) topFlangeChart.destroy();
+        topFlangeChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'เฉลี่ยต่อรอบ (ml)',
+                    data: data,
+                    backgroundColor: 'rgba(255, 179, 193, 0.8)', // สีชมพูอ่อนกว่านิดนึง
+                    borderColor: '#ff5c7a',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: { 
+                indexAxis: 'y', // เปลี่ยนเป็นกราฟแนวนอน
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { x: { beginAtZero: true } }, 
+                plugins: { legend: { display: false } } 
             }
         });
     }
